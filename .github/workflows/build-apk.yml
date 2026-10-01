@@ -15,7 +15,9 @@ jobs:
           java-version: 21
       - run: npm install
       - run: npx cap add android
-      - run: npx @capacitor/assets generate --android --iconBackgroundColor '#faf9f5' --iconBackgroundColorDark '#262624'
+      - run: |
+          sed -i 's#</manifest>#    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />\n</manifest>#' android/app/src/main/AndroidManifest.xml
+      - run: npx @capacitor/assets generate --android --iconBackgroundColor '#0b0b0f' --iconBackgroundColorDark '#0b0b0f'
       - run: npx cap sync android
       - run: cd android && chmod +x gradlew && ./gradlew assembleDebug
       - uses: actions/upload-artifact@v4
