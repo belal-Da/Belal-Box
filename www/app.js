@@ -45,12 +45,16 @@ async function llm(p,h,sys,o){const an=p.type=='anthropic';let b=p.base.replace(
 const url=an?b+'/v1/messages':b+'/chat/completions',hd=an?{'x-api-key':p.key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true','content-type':'application/json'}:{Authorization:'Bearer '+p.key,'content-type':'application/json'};
 const body=an?{model:p.model,max_tokens:+cfg.max||16000,system:sys,messages:h,stream:!!o.stream}:{model:p.model,max_tokens:+cfg.max||16000,messages:[{role:'system',content:sys},...h],stream:!!o.stream};
 if(cfg.web&&o.web){if(an)body.tools=[{type:'web_search_20250305',name:'web_search',max_uses:5}];else if(/openrouter/.test(b))body.plugins=[{id:'web'}]}
-let acc='';const tk=x=>{acc+=x;o.tok&&o.tok(x)};
-if(!o.stream){const j=await hx(url,hd,body);tk(an?j.content.map(x=>x.text||'').join(''):j.choices[0].message.content);return acc}
+let acc='',raw='';const tk=x=>{if(x){acc+=x;o.tok&&o.tok(x)}};
+const ex=j=>{if(j.error)throw new Error(typeof j.error=='string'?j.error:(j.error.message||JSON.stringify(j.error)).slice(0,300));const c=j.choices&&j.choices[0];return(j.delta&&j.delta.text)||(c&&((c.delta&&c.delta.content)||(c.message&&c.message.content)||c.text))||(Array.isArray(j.content)?j.content.map(x=>x.text||'').join(''):'')||j.output_text||''};
+if(!o.stream){const j=await hx(url,hd,body);tk(ex(j));if(!acc)throw new Error('Empty response: '+JSON.stringify(j).slice(0,300));return acc}
 const r=await fetch(url,{method:'POST',headers:hd,body:JSON.stringify(body),signal:o.sg});if(!r.ok)throw new Error(r.status+' '+(await r.text()).slice(0,300));
 const rd=r.body.getReader(),dc=new TextDecoder();let buf='';
-for(;;){const{done,value}=await rd.read();if(done)break;buf+=dc.decode(value,{stream:true});const ls=buf.split('\n');buf=ls.pop();
-for(const l of ls){if(!l.startsWith('data:'))continue;const d=l.slice(5).trim();if(!d||d=='[DONE]')continue;try{const j=JSON.parse(d),x=an?(j.delta&&j.delta.text):(j.choices&&j.choices[0]&&j.choices[0].delta&&j.choices[0].delta.content);if(x)tk(x)}catch(e){}}}
+for(;;){const{done,value}=await rd.read();if(done)break;const ch=dc.decode(value,{stream:true});if(raw.length<4000)raw+=ch;buf+=ch;const ls=buf.split('\n');buf=ls.pop();
+for(const l of ls){if(!l.startsWith('data:'))continue;const d=l.slice(5).trim();if(!d||d=='[DONE]')continue;let j;try{j=JSON.parse(d)}catch(e){continue}tk(ex(j))}}
+if(buf.startsWith('data:')){try{tk(ex(JSON.parse(buf.slice(5))))}catch(e){}}
+if(!acc){let j;try{j=JSON.parse(raw)}catch(e){}if(j)tk(ex(j))}
+if(!acc)throw new Error('Empty response: '+raw.slice(0,300));
 return acc}
 async function sysP(c,qq){const L={en:'Reply in English.',bn:'Reply in Bengali (Bangla) unless asked otherwise.',mix:'Reply in natural Bengali mixed with common English technical terms (Banglish).'}[cfg.lang]||'';
 let s=DEF+' '+L+(cfg.name?` The user's name is ${cfg.name}.`:'')+(cfg.sys?'\n\n# Custom instructions\n'+cfg.sys:'')+(cfg.mem?'\n\n# Long-term memory\n'+cfg.mem:'');
