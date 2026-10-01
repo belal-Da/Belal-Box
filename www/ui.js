@@ -3,7 +3,7 @@ const sh=(id,on)=>$('#'+id).classList[on?'add':'remove']('on');
 document.querySelectorAll('.ov').forEach(o=>o.addEventListener('click',e=>{if(e.target===o&&o.id!='pv')o.classList.remove('on')}));
 const IC={menu:'menu',ar_b:'file',nc2:'edit',gear:'gear',plus:'plus'};for(const k in IC)$('#'+k).innerHTML=ic(IC[k]);$('#pvx').innerHTML=ic('x');
 function lbl(){$('#inp').placeholder=t('Message Belal Box…|Belal Box-কে লিখুন…');$('#adt').textContent=t('Add to chat|চ্যাটে যোগ করুন');$('#wtl').textContent=t('Web search|ওয়েব সার্চ');$('#alt').textContent=t('Artifacts|আর্টিফ্যাক্ট');$('#nc').textContent=t('New chat|নতুন চ্যাট');[['t1','cam','Camera|ক্যামেরা'],['t2','img','Photos|ছবি'],['t3','clip','Files|ফাইল']].forEach(([i,n,l])=>$('#'+i).innerHTML=ic(n,26)+'<br>'+t(l));if($('#setb')&&$('#set').classList.contains('on'))drawSet()}
-$('#plus').onclick=()=>{$('#wt').checked=!!cfg.web;sh('ad',1)};$('#wt').onchange=e=>{cfg.web=e.target.checked;save()};
+$('#plus').onclick=()=>{$('#wt').checked=cfg.search!='off';sh('ad',1)};$('#wt').onchange=e=>{cfg.search=e.target.checked?'auto':'off';save()};
 [1,2,3].forEach(n=>$('#t'+n).onclick=()=>{sh('ad',0);$('#f'+n).click()});
 $('#nc2').onclick=()=>{newChat();save();rend()};
 const tile=n=>{const x=(n.split('.').pop()||'').toUpperCase(),d=/^(MD|TXT)$/.test(x);return`<div class="ft ${d?'bl':'or'}">${d?ic('file',26):'&lt;/&gt;'}</div><div><b>${esc(n)}</b><small>${d?'Document':'Code'} · ${esc(x)}</small></div>`};
@@ -15,7 +15,7 @@ $('#arb').innerHTML=`<div class="vh"><button class="ib" data-v="x">${ic('x')}</b
 async function vact(a){const f=F[AK];if(a=='x')return sh('ar',0);if(a=='m'){const m=$('#vm');m.hidden=!m.hidden;return}$('#vm').hidden=true;
 if(a=='cp')navigator.clipboard.writeText(f.c).then(()=>toast(t('Copied|কপি হয়েছে')));
 if(a=='dl')dl(f.n.split('/').pop(),new Blob([f.c]));
-if(a=='pv'){$('#pvf').srcdoc=f.c;sh('pv',1)}
+if(a=='pv'){$('#pvf').srcdoc=bundle(AK);sh('pv',1)}
 if(a=='pdf'){try{if(!window.jspdf)await new Promise((r,j)=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';s.onload=r;s.onerror=j;document.head.appendChild(s)});const d=new jspdf.jsPDF({unit:'pt',format:'a4'});d.setFont('courier');d.setFontSize(8);let y=30;for(const l of d.splitTextToSize(f.c,540)){if(y>810){d.addPage();y=30}d.text(l,28,y);y+=10}dl(f.n.split('/').pop()+'.pdf',d.output('blob'))}catch(e){toast(e.message)}}}
 $('#alb').onclick=$('#chat').onclick;
 $('#arb').onclick=e=>{const v=e.target.closest('[data-v]');if(v)return vact(v.dataset.v);$('#chat').onclick(e)};

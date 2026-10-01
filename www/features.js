@@ -5,7 +5,7 @@ const t=s=>{const[a,b]=String(s).split('|');return cfg.lang=='bn'?(b||a):cfg.lan
 const hap=()=>{try{cfg.hap&&navigator.vibrate(12)}catch(e){}};
 const setSend=b=>{$('#send').innerHTML=ic(b?'stop':'up')};
 const look=()=>{const d=cfg.theme=='dark'||(cfg.theme!='light'&&matchMedia('(prefers-color-scheme:dark)').matches),r=document.documentElement;r.dataset.t=d?'dark':'light';r.dataset.f=cfg.font};
-const DEFC={lang:'bn',theme:'system',font:'serif',stream:true,art:true,sum:true,auto:true,ltime:true,web:false,hap:true,max:16000,ctx:100000,name:'',sys:'',mem:'',lw:'',ltk:'',wall:'',provs:[],active:0,tts:{eng:'auto',murfU:'https://global.api.murf.ai/v1/speech/stream',murfV:'Debarati',murfS:'Conversational',murfM:'falcon-2',murfL:'bn-IN',gemM:'gemini-2.5-flash-preview-tts',gemV:'Leda',oaU:'https://api.groq.com/openai/v1/audio/speech',oaM:'playai-tts',oaV:'Celeste-PlayAI'}};
+const DEFC={lang:'bn',theme:'system',font:'serif',stream:true,art:true,sum:true,auto:true,ltime:true,search:'auto',read:true,tavK:'',braveK:'',hap:true,max:16000,ctx:100000,name:'',sys:'',mem:'',lw:'',wall:'',provs:[],active:0,tts:{gemK:'',gemV:'Leda',gemM:'gemini-2.5-flash-preview-tts',auto:false}};
 const PRE=[['OpenRouter','openai','https://openrouter.ai/api/v1'],['Anthropic','anthropic','https://api.anthropic.com'],['OpenAI','openai','https://api.openai.com/v1'],['Gemini','openai','https://generativelanguage.googleapis.com/v1beta/openai'],['Groq','openai','https://api.groq.com/openai/v1'],['DeepSeek','openai','https://api.deepseek.com/v1'],['xAI','openai','https://api.x.ai/v1'],['Mistral','openai','https://api.mistral.ai/v1'],['SiliconFlow','openai','https://api.siliconflow.cn/v1'],['Ollama','openai','http://localhost:11434/v1'],['Custom','openai','']];
 /* model abilities */
 function caps(id,p){const m=(p.meta||{})[id]||{},s=id.toLowerCase();return{v:m.v??/claude|gpt-[45]|gemini|vision|-vl|llava|kimi|qwen3|pixtral|grok-[2-9]/.test(s),r:m.r??/opus|sonnet|fable|mythos|o[134](-|$)|r1|thinking|gpt-5|gemini-(2\.5|3)|deepseek.*(pro|r)|qwq|glm-[45]/.test(s),t:m.t??!/embed|tts|whisper|image|dall/.test(s),c:m.c||''}}
@@ -13,55 +13,77 @@ const bd=(id,p)=>{const c=caps(id,p);return`<span class="bd">${c.v?ic('eye',15):
 async function fetchM(p){const an=p.type=='anthropic';let b=p.base.replace(/\/+$/,'');if(an)b=b.replace(/\/v1$/,'');
 try{toast('…');const j=await hx(an?b+'/v1/models?limit=1000':b+'/models',an?{'x-api-key':p.key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'}:{Authorization:'Bearer '+p.key}),d=j.data||j;p.meta={};
 p.models=d.map(x=>{const id=String(x.id||x.name||x).replace(/^models\//,''),f=n=>n>=1e6?(n/1e6)+'M':Math.round(n/1e3)+'K';if(x.context_length||x.architecture)p.meta[id]={c:x.context_length?f(x.context_length):'',v:x.architecture?(x.architecture.input_modalities||[]).includes('image'):undefined,r:x.supported_parameters?x.supported_parameters.includes('reasoning'):undefined,t:x.supported_parameters?x.supported_parameters.includes('tools'):undefined};return id}).sort();save();drawSet();toast(p.models.length+' models')}catch(e){toast(e.message)}}
-/* live data */
+Object.assign(P,{folder:'M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z',refresh:'M20 11a8 8 0 1 0-2 5.5M20 4v7h-7',search:'M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM20 20l-4-4'});
+/* live data + web search */
+let lastWS='';
+async function hxt(url,h){if(isN()){const r=await Capacitor.Plugins.CapacitorHttp.request({url,method:'GET',headers:h||{},responseType:'text'});if(r.status>=400)throw new Error(r.status);return typeof r.data=='string'?r.data:JSON.stringify(r.data)}const r=await fetch(url,{headers:h});if(!r.ok)throw new Error(r.status);return r.text()}
+const needS=q=>cfg.search=='always'||(cfg.search=='auto'&&q.length>6&&/\?|কী|কত|কখন|কোথায়|কেন|কিভাবে|আজ|এখন|সর্বশেষ|দাম|আবহাওয়া|খবর|ফলাফল|latest|news|today|current|price|weather|who is|score|release|202\d/i.test(q));
+async function wsearch(q){q=q.slice(0,250);const S=[];let ctx='';
+try{if(cfg.tavK){const r=await hx('https://api.tavily.com/search',{'content-type':'application/json'},{api_key:cfg.tavK,query:q,max_results:6,include_answer:true});if(r.answer)ctx+='Summary: '+r.answer+'\n';(r.results||[]).forEach(x=>{S.push({t:x.title,u:x.url});ctx+=`- ${x.title} (${x.url}): ${(x.content||'').slice(0,600)}\n`})}
+else if(cfg.braveK){const r=await hx('https://api.search.brave.com/res/v1/web/search?count=6&q='+encodeURIComponent(q),{'X-Subscription-Token':cfg.braveK,Accept:'application/json'});((r.web&&r.web.results)||[]).forEach(x=>{S.push({t:x.title,u:x.url});ctx+=`- ${x.title} (${x.url}): ${(x.description||'').replace(/<[^>]+>/g,'')}\n`})}}catch(e){}
+if(!S.length){try{const d=new DOMParser().parseFromString(await hxt('https://html.duckduckgo.com/html/?q='+encodeURIComponent(q),{'User-Agent':'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36'}),'text/html');d.querySelectorAll('.result').forEach(el=>{const a=el.querySelector('.result__a');if(!a||S.length>=6)return;let u=a.getAttribute('href')||'';try{u=new URL(u,'https://duckduckgo.com').searchParams.get('uddg')||u}catch(e){}const sn=(el.querySelector('.result__snippet')||{}).textContent||'';S.push({t:a.textContent.trim(),u});ctx+=`- ${a.textContent.trim()} (${u}): ${sn.trim()}\n`})}catch(e){}}
+if(!S.length){try{const l=/[\u0980-\u09FF]/.test(q)?'bn':'en',j=await hx(`https://${l}.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(q)}&format=json&origin=*&srlimit=5`,{});(j.query.search||[]).forEach(x=>{const u=`https://${l}.wikipedia.org/wiki/${encodeURIComponent(x.title.replace(/ /g,'_'))}`;S.push({t:x.title,u});ctx+=`- ${x.title} (${u}): ${x.snippet.replace(/<[^>]+>/g,'')}\n`})}catch(e){}}
+if(cfg.read&&S.length)await Promise.all(S.slice(0,2).map(async x=>{try{const tx=await Promise.race([hxt('https://r.jina.ai/'+x.u,{}),new Promise((_,j)=>setTimeout(j,9000))]);ctx+=`\n## Page: ${x.t} (${x.u})\n${tx.slice(0,3500)}\n`}catch(e){}}));
+return{ctx:ctx?`\n\n# Web search results for "${q}" (fetched just now)\n`+ctx:'\n\n# Web search\nNo results could be fetched; say so if the answer needs current data.',src:S}}
 async function live(q){const o=[];if(cfg.ltime)o.push('Now: '+new Date().toString());
 if(cfg.lw){try{const g=await hx('https://geocoding-api.open-meteo.com/v1/search?count=1&name='+encodeURIComponent(cfg.lw),{}),r=g.results[0],w=await hx(`https://api.open-meteo.com/v1/forecast?latitude=${r.latitude}&longitude=${r.longitude}&current=temperature_2m,weather_code,wind_speed_10m`,{});o.push(`Weather in ${r.name}: ${JSON.stringify(w.current)}`)}catch(e){}}
-if(cfg.ltk&&q){try{const r=await hx('https://api.tavily.com/search',{'content-type':'application/json'},{api_key:cfg.ltk,query:q.slice(0,300),max_results:5,include_answer:true});o.push('Web results: '+(r.answer||'')+'\n'+r.results.map(x=>`- ${x.title}: ${x.content.slice(0,300)} (${x.url})`).join('\n'))}catch(e){}}
-return o.length?'\n\n# Live data (fetched just now, trust over training data)\n'+o.join('\n'):''}
-/* voice */
-let spk=0;const stopA=()=>{spk++;if(audio){audio.pause();audio=null}speechSynthesis.cancel()};
-const bin=async(url,hd,body)=>{if(isN()){const r=await Capacitor.Plugins.CapacitorHttp.request({url,method:'POST',headers:hd,data:body,responseType:'blob'});if(r.status>=400)throw new Error(r.status+' '+String(r.data).slice(0,120));return'data:audio/mpeg;base64,'+r.data}const r=await fetch(url,{method:'POST',headers:hd,body:JSON.stringify(body)});if(!r.ok)throw new Error(r.status+' '+(await r.text()).slice(0,120));return URL.createObjectURL(await r.blob())};
-const wav=b=>{const d=Uint8Array.from(atob(b),c=>c.charCodeAt(0)),h=new DataView(new ArrayBuffer(44)),w=(o,s)=>[...s].forEach((c,i)=>h.setUint8(o+i,c.charCodeAt(0)));w(0,'RIFF');h.setUint32(4,36+d.length,true);w(8,'WAVEfmt ');h.setUint32(16,16,true);h.setUint16(20,1,true);h.setUint16(22,1,true);h.setUint32(24,24000,true);h.setUint32(28,48000,true);h.setUint16(32,2,true);h.setUint16(34,16,true);w(36,'data');h.setUint32(40,d.length,true);return URL.createObjectURL(new Blob([h,d],{type:'audio/wav'}))};
-async function synth(e,x){const T=cfg.tts;
-if(e=='murf'){const b={text:x,voiceId:T.murfV,model:T.murfM,locale:T.murfL,format:'MP3'};if(T.murfS)b.style=T.murfS;return bin(T.murfU,{'api-key':T.murfK,'content-type':'application/json'},b)}
-if(e=='gemini'){const j=await hx(`https://generativelanguage.googleapis.com/v1beta/models/${T.gemM}:generateContent?key=${T.gemK}`,{'content-type':'application/json'},{contents:[{parts:[{text:'Say warmly in a natural female Bengali voice: '+x}]}],generationConfig:{responseModalities:['AUDIO'],speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:T.gemV}}}}});return wav(j.candidates[0].content.parts[0].inlineData.data)}
-return bin(T.oaU,{Authorization:'Bearer '+T.oaK,'content-type':'application/json'},{model:T.oaM,voice:T.oaV,input:x,response_format:'mp3'})}
-const play=u=>new Promise((r,j)=>{audio=new Audio(u);audio.onended=r;audio.onerror=()=>j(new Error('audio'));audio.play().catch(j)});
-const speak=i=>speakT(cur().msgs[i].t.replace(SR,'').replace(RM,'').replace(/`{3,}[\s\S]*?(`{3,}|$)/g,' ').replace(/[*#`_>\[\]]/g,'').trim().slice(0,3000));
-async function speakT(text){if(!text)return;stopA();const my=spk,T=cfg.tts,cs=[];let c='';for(const s of text.match(/[^।.!?\n]+[।.!?\n]*/g)||[text]){if((c+s).length>380&&c){cs.push(c);c=''}c+=s}if(c)cs.push(c);
-const K={murf:T.murfK,gemini:T.gemK,openai:T.oaK},ord=(T.eng=='device'?[]:[T.eng,'gemini','murf','openai']).filter((e,i,a)=>K[e]&&a.indexOf(e)==i);
-for(const e of ord){try{let Pm=synth(e,cs[0]);for(let i=0;i<cs.length;i++){const u=await Pm;if(my!=spk)return;if(i+1<cs.length)Pm=synth(e,cs[i+1]);await play(u);if(my!=spk)return}return}catch(x){toast(e+': '+x.message)}}
-if(my==spk){const u=new SpeechSynthesisUtterance(text);u.lang='bn-BD';speechSynthesis.speak(u)}}
+return(o.length?'\n\n# Live data\n'+o.join('\n'):'')+lastWS}
+/* preview bundle: inline css/js of the same project */
+function bundle(k){const mi=k.split(':')[0],fs=Object.entries(F).filter(([x,f])=>x.startsWith(mi+':')&&!f.p),g=n=>{const b=n.split('/').pop(),e=fs.find(([x,f])=>f.n==n||f.n.endsWith('/'+n)||f.n.split('/').pop()==b);return e&&e[1].c};
+return F[k].c.replace(/<link[^>]+href=["']([^"']+\.css)["'][^>]*>/gi,(m,h)=>{const c=g(h);return c!=null?'<style>'+c+'</style>':m}).replace(/<script([^>]*)src=["']([^"']+\.js)["']([^>]*)><\/script>/gi,(m,a,h,b)=>{const c=g(h);return c!=null?'<script'+a+b+'>'+c+'<\/script>':m})}
+/* voice: Gemini only */
+let spk=0,AC=null,nextT=0,srcs=[];
+const stopA=()=>{spk++;srcs.forEach(s=>{try{s.stop()}catch(e){}});srcs=[];try{speechSynthesis.cancel()}catch(e){}};
+const GV=['Leda','Aoede','Zephyr','Kore','Callirrhoe','Autonoe','Despina','Erinome','Laomedeia','Achernar','Sulafat','Vindemiatrix'];
+async function gTTS(x,m){const T=cfg.tts,j=await hx(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${encodeURIComponent(T.gemK)}`,{'content-type':'application/json'},{contents:[{parts:[{text:'Read this aloud in clear, natural, warm Bengali (Bangla) with a young female voice at a pleasant steady pace: '+x}]}],generationConfig:{responseModalities:['AUDIO'],speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:T.gemV||'Leda'}}}}});
+const ps=(((j.candidates||[])[0]||{}).content||{}).parts||[],p=ps.find(z=>z.inlineData);if(!p)throw new Error('No audio returned: '+JSON.stringify(j).slice(0,160));return{b:p.inlineData.data,r:+((/rate=(\d+)/.exec(p.inlineData.mimeType||''))||[0,24000])[1]}}
+async function gModel(){const T=cfg.tts;try{const j=await hx(`https://generativelanguage.googleapis.com/v1beta/models?pageSize=200&key=${encodeURIComponent(T.gemK)}`,{}),l=(j.models||[]).filter(m=>/tts/i.test(m.name)&&(m.supportedGenerationMethods||[]).includes('generateContent')).map(m=>m.name.replace('models/',''));if(l.length){T.gemM=l.find(x=>/flash/.test(x))||l[0];save();return T.gemM}}catch(e){}return T.gemM}
+const pcm=(b,r)=>{const s=atob(b),n=s.length>>1,f=new Float32Array(n);for(let i=0;i<n;i++){let v=s.charCodeAt(2*i)|(s.charCodeAt(2*i+1)<<8);if(v>=32768)v-=65536;f[i]=v/32768}const bf=AC.createBuffer(1,n,r);bf.getChannelData(0).set(f);return bf};
+const queue=bf=>{const s=AC.createBufferSource();s.buffer=bf;s.connect(AC.destination);nextT=Math.max(nextT,AC.currentTime+.05);s.start(nextT);nextT+=bf.duration;srcs.push(s);return new Promise(r=>s.onended=r)};
+const speak=i=>speakT(cur().msgs[i].t.replace(SR,'').replace(RM,'').replace(/`{3,}[\s\S]*?(`{3,}|$)/g,' ').replace(/[*#`_>\[\]]/g,'').trim().slice(0,3500));
+async function speakT(text){if(!text)return;stopA();const my=spk,T=cfg.tts;
+const dev=()=>{if(my==spk){try{const u=new SpeechSynthesisUtterance(text);u.lang='bn-BD';speechSynthesis.speak(u)}catch(e){}}};
+if(!T.gemK){toast(t('Add your Gemini API key in Settings > Voice|সেটিংস > ভয়েসে Gemini কী দিন'));return dev()}
+try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();await AC.resume()}catch(e){toast('Audio: '+e.message);return dev()}
+nextT=0;const cs=[];let c='';for(const s of text.match(/[^।.!?\n]+[।.!?\n]*/g)||[text]){if((c+s).length>320&&c){cs.push(c);c=''}c+=s}if(c)cs.push(c);
+let m=T.gemM||'gemini-2.5-flash-preview-tts';
+const get=async x=>{for(let k=0;k<3;k++){try{return await gTTS(x,m)}catch(e){const ms=e.message;if(/404|NOT_FOUND|not found|not supported|INVALID_ARGUMENT/i.test(ms)&&k==0){const n=await gModel();if(n&&n!=m){m=n;continue}}if(/429|RESOURCE_EXHAUSTED/i.test(ms)&&k<2){await new Promise(r=>setTimeout(r,1500));continue}if(/500|503|UNAVAILABLE|overloaded|Failed to fetch|NetworkError/i.test(ms)&&k<2){await new Promise(r=>setTimeout(r,700));continue}throw e}}};
+let first=true;
+try{let P=get(cs[0]),last;for(let i=0;i<cs.length;i++){const a=await P;if(my!=spk)return;first=false;if(i+1<cs.length)P=get(cs[i+1]);last=queue(pcm(a.b,a.r))}await last}
+catch(e){toast('Gemini: '+String(e.message).slice(0,200));if(first)dev()}}
 /* settings */
+const GVL=GV;
 const SEC=[
-['profile','user','Profile|প্রোফাইল',[['name','text','Your name|আপনার নাম']]],
-['prov','bolt','Models & providers|মডেল ও প্রোভাইডার'],
-['cap','gear','Capabilities|সক্ষমতা',[['web','sw','Web search (Anthropic, OpenRouter)|ওয়েব সার্চ'],['stream','sw','Live streaming|লাইভ স্ট্রিমিং'],['art','sw','File cards|ফাইল কার্ড'],['sum','sw','Progress summary|কাজের সারাংশ'],['max','num','Max output tokens|সর্বোচ্চ আউটপুট'],['sys','area','Custom instructions|নিজস্ব নির্দেশনা']]],
-['live','globe','Live data|লাইভ তথ্য',[['ltime','sw','Date and time|তারিখ ও সময়'],['lw','text','Weather city (Open-Meteo, free)|আবহাওয়ার শহর'],['ltk','pw','Tavily API key (web search for any model)|Tavily কী']]],
-['mem','brain','Memory|মেমরি',[['mem','area','Long-term notes|দীর্ঘমেয়াদি নোট'],['auto','sw','AI may save notes|AI নোট সেভ করবে'],['ctx','num','Compact chat after N characters|কত অক্ষর পর সংক্ষেপ']]],
-['voice','voice','Voice|ভয়েস',[['tts.eng','sel','Engine|ইঞ্জিন',['auto','gemini','murf','openai','device']],['tts.gemK','pw','Gemini API key'],['tts.gemV','text','Gemini voice (Leda, Aoede, Kore)'],['tts.gemM','text','Gemini TTS model'],['tts.murfK','pw','Murf API key'],['tts.murfV','text','Murf voice ID'],['tts.murfS','text','Murf style'],['tts.murfM','text','Murf model'],['tts.murfL','text','Murf locale'],['tts.murfU','text','Murf URL'],['tts.oaK','pw','OpenAI-compatible TTS key (Groq...)'],['tts.oaU','text','TTS URL'],['tts.oaM','text','TTS model'],['tts.oaV','text','TTS voice'],['_tts','btn','Test voice|ভয়েস টেস্ট']]],
-['look','moon','Appearance|চেহারা',[['theme','sel','Color mode|রঙের মোড',['system','light','dark']],['font','sel','Font style|ফন্ট',['serif','sans','mono']],['hap','sw','Haptic feedback|হ্যাপটিক'],['wall','wall','Wallpaper|ওয়ালপেপার']]],
-['lang','lang','Language|ভাষা',[['lang','sel','App and AI language: en / bn / mix|ভাষা: en / bn / mix',['en','bn','mix']]]],
-['priv','shield','Privacy and data|গোপনীয়তা ও ডেটা',[['_exp','btn','Export chats|চ্যাট এক্সপোর্ট'],['_clr','btn','Delete all chats|সব চ্যাট মুছুন']]]];
+['profile','user','Profile|প্রোফাইল','#3b82f6','Name and greeting|নাম ও অভিবাদন',[['name','text','Your name|আপনার নাম',0,'Used in greetings and replies|অভিবাদন ও উত্তরে ব্যবহৃত হয়']]],
+['prov','bolt','Models & providers|মডেল ও প্রোভাইডার','#f97316','API keys, models, abilities|কী, মডেল, ক্ষমতা'],
+['web','search','Web search|ওয়েব সার্চ','#10b981','Real-time online answers|অনলাইন থেকে রিয়েল টাইম তথ্য',[['search','sel','Search mode|সার্চ মোড',['auto','always','off'],'auto searches only when a question needs fresh info|auto: নতুন তথ্য লাগলে নিজে খুঁজবে'],['read','sw','Read top pages|টপ পেজ পড়বে',0,'Reads the full text of the first 2 results|প্রথম ২টা ফলাফলের পুরো লেখা পড়বে'],['tavK','pw','Tavily API key (optional, best quality)|Tavily কী (ঐচ্ছিক, সেরা মান)',0,'Without a key, free DuckDuckGo and Wikipedia are used|কী না দিলে ফ্রি DuckDuckGo ও Wikipedia চলবে'],['braveK','pw','Brave Search API key (optional)|Brave কী (ঐচ্ছিক)']]],
+['live','gear','Date & weather|তারিখ ও আবহাওয়া','#0ea5e9','Local time and forecast|সময় ও আবহাওয়া',[['ltime','sw','Share date and time|তারিখ ও সময় জানাবে'],['lw','text','Weather city|আবহাওয়ার শহর',0,'Free Open-Meteo, no key needed|ফ্রি, কী লাগে না']]],
+['cap','bolt','Capabilities|সক্ষমতা','#8b5cf6','Streaming, files, instructions|স্ট্রিমিং, ফাইল, নির্দেশনা',[['stream','sw','Live streaming|লাইভ স্ট্রিমিং',0,'Show the reply while it is written|লেখার সময়ই উত্তর দেখাবে'],['art','sw','File cards and folders|ফাইল কার্ড ও ফোল্ডার',0,'Files appear as cards or folders, never raw code|ফাইল কার্ড/ফোল্ডার হিসেবে আসবে'],['sum','sw','Step summary|ধাপের সারাংশ',0,'Shows a steps row above replies|উত্তরের ওপরে ধাপ দেখাবে'],['max','num','Max output tokens|সর্বোচ্চ আউটপুট',0,'Raise it for very large files|খুব বড় ফাইলে বাড়ান'],['sys','area','Custom instructions|নিজস্ব নির্দেশনা']]],
+['mem','brain','Memory|মেমরি','#ec4899','Notes and long chats|নোট ও লম্বা চ্যাট',[['mem','area','Long-term notes|দীর্ঘমেয়াদি নোট'],['auto','sw','AI may save notes|AI নোট সেভ করবে'],['ctx','num','Compact chat after N characters|কত অক্ষর পর সংক্ষেপ']]],
+['voice','voice','Voice|ভয়েস','#ef4444','Gemini female Bengali voice|Gemini বাংলা মেয়ের কণ্ঠ',[['tts.gemK','pw','Gemini API key|Gemini কী',0,'Free key from aistudio.google.com|aistudio.google.com থেকে ফ্রি কী'],['tts.gemV','sel','Voice|কণ্ঠ',GVL,'Female voices|মেয়েদের কণ্ঠ'],['tts.gemM','text','TTS model (fixes itself)|মডেল (নিজে ঠিক হবে)'],['tts.auto','sw','Read replies aloud|উত্তর নিজে পড়বে'],['_tts','btn','Test voice|ভয়েস টেস্ট']]],
+['look','moon','Appearance|চেহারা','#6366f1','Theme, font, wallpaper|থিম, ফন্ট, ওয়ালপেপার',[['theme','sel','Color mode|রঙের মোড',['system','light','dark']],['font','sel','Font style|ফন্ট',['serif','sans','mono']],['hap','sw','Haptic feedback|হ্যাপটিক'],['wall','wall','Wallpaper|ওয়ালপেপার']]],
+['lang','lang','Language|ভাষা','#14b8a6','App and AI language|অ্যাপ ও AI-এর ভাষা',[['lang','sel','en = English, bn = Bangla, mix = Banglish|en = ইংরেজি, bn = বাংলা, mix = মিশ্র',['en','bn','mix']]]],
+['priv','shield','Privacy and data|গোপনীয়তা ও ডেটা','#64748b','Export or delete chats|চ্যাট এক্সপোর্ট বা মুছুন',[['_exp','btn','Export chats|চ্যাট এক্সপোর্ট'],['_clr','btn','Delete all chats|সব চ্যাট মুছুন']]]];
 let sp='';
 const gp=(o,k)=>k.split('.').reduce((a,x)=>a&&a[x],o),sv=(o,k,v)=>{const a=k.split('.'),l=a.pop();let d=o;a.forEach(x=>d=d[x]=d[x]||{});d[l]=v};
 const objOf=()=>/^p\d/.test(sp)?cfg.provs[+sp.slice(1)]:cfg;
-const FLD=(k,ty,lb,op)=>{const v=gp(objOf(),k),a=`data-k="${k}"`,L=`<label>${t(lb)}</label>`,x=esc(v??'');
-if(ty=='sw')return`<div class="rw"><span>${t(lb)}</span><label class="tg"><input type="checkbox" ${a} ${v?'checked':''}><i></i></label></div>`;
-if(ty=='sel')return L+`<select ${a}>${op.map(z=>`<option ${z==v?'selected':''}>${z}</option>`).join('')}</select>`;
-if(ty=='area')return L+`<textarea rows="4" ${a}>${x}</textarea>`;
+const FLD=(k,ty,lb,op,ds)=>{const v=gp(objOf(),k),a=`data-k="${k}"`,D=ds?`<small class="ds">${t(ds)}</small>`:'',L=`<label>${t(lb)}</label>`,x=esc(v??'');
+if(ty=='sw')return`<div class="rw"><span><b class="sl">${t(lb)}</b>${D}</span><label class="tg"><input type="checkbox" ${a} ${v?'checked':''}><i></i></label></div>`;
+if(ty=='sel')return L+`<select ${a}>${op.map(z=>`<option ${z==v?'selected':''}>${z}</option>`).join('')}</select>`+D;
+if(ty=='area')return L+`<textarea rows="4" ${a}>${x}</textarea>`+D;
 if(ty=='btn')return`<button class="pri" data-b="${k}">${t(lb)}</button>`;
 if(ty=='wall')return L+`<input type="file" accept="image/*" data-w="1"><button data-b="nowall" style="margin-top:8px">${t('Remove|সরান')}</button>`;
-return L+`<input ${a} type="${ty=='pw'?'password':ty=='num'?'number':'text'}" value="${x}">`};
+return L+`<input ${a} type="${ty=='pw'?'password':ty=='num'?'number':'text'}" value="${x}">`+D};
 const hd=(ti,bk)=>`<div class="vh"><button class="ib" data-sb="${bk}">${ic(bk=='x'?'x':'back')}</button><b>${ti}</b><i style="width:40px"></i></div>`;
 function openSet(p=''){sp=p;drawSet();sh('set',1)}
 function drawSet(){let h;
-if(sp=='')h=hd(t('Settings|সেটিংস'),'x')+SEC.map(s=>`<div class="rw" data-s="${s[0]}"><span class="ri">${ic(s[1])}${t(s[2])}</span>${ic('chev',16)}</div>`).join('');
-else if(sp=='prov')h=hd(t('Models & providers|মডেল ও প্রোভাইডার'),'')+cfg.provs.map((p,i)=>`<div class="rw" data-s="p${i}"><span class="ri"><i class="dt ${p.key?'on':''}"></i>${esc(p.name)}${i==cfg.active?' (active)':''}</span>${ic('chev',16)}</div>`).join('')+`<button class="pri" data-s="add">${t('Add provider|প্রোভাইডার যোগ করুন')}</button>`;
-else if(sp=='add')h=hd(t('Add provider|প্রোভাইডার যোগ করুন'),'prov')+PRE.map((x,i)=>`<div class="rw" data-add="${i}"><span>${x[0]}</span>${ic('plus',16)}</div>`).join('');
-else if(/^p\d/.test(sp)){const p=objOf();h=hd(esc(p.name),'prov')+FLD('name','text','Name|নাম')+FLD('type','sel','Type|ধরন',['openai','anthropic'])+FLD('base','text','Base URL')+FLD('key','pw','API key|এপিআই কী')+FLD('model','text','Model|মডেল')+`<div class="row"><button data-b="fetch">${t('Fetch models|মডেল আনুন')}</button><button data-b="use">${t('Use this|এটা ব্যবহার করুন')}</button></div>`+(p.models||[]).slice(0,300).map(m=>`<div class="rw" data-m="${esc(m)}"><span>${esc(m)}</span>${bd(m,p)}</div>`).join('')+`<button data-b="del" style="margin-top:14px">${t('Delete provider|মুছুন')}</button>`}
-else{const s=SEC.find(x=>x[0]==sp);h=hd(t(s[2]),'')+s[3].map(f=>FLD(...f)).join('')}
+if(sp=='')h=hd(t('Settings|সেটিংস'),'x')+`<div class="hero"><img src="logo.png"><div><b>Belal Box</b><small>${t('Your AI assistant|আপনার এআই সহকারী')}</small></div></div><div class="card">`+SEC.map(s=>`<div class="rw" data-s="${s[0]}"><span class="ti" style="background:${s[3]}">${ic(s[1],18)}</span><span class="rt"><b>${t(s[2])}</b><small>${t(s[4])}</small></span>${ic('chev',16)}</div>`).join('')+'</div>';
+else if(sp=='prov')h=hd(t('Models & providers|মডেল ও প্রোভাইডার'),'')+'<div class="card">'+cfg.provs.map((p,i)=>`<div class="rw" data-s="p${i}"><span class="rt"><b><i class="dt ${p.ok===true?'on':p.ok===false?'off':''}"></i> ${esc(p.name)}${i==cfg.active?' ✓':''}</b><small>${esc(p.model||'—')}</small></span>${ic('chev',16)}</div>`).join('')+`</div><button class="pri" data-s="add">${t('Add provider|প্রোভাইডার যোগ করুন')}</button>`;
+else if(sp=='add')h=hd(t('Add provider|প্রোভাইডার যোগ করুন'),'prov')+'<div class="card">'+PRE.map((x,i)=>`<div class="rw" data-add="${i}"><span class="rt"><b>${x[0]}</b><small>${esc(x[2]||'custom')}</small></span>${ic('plus',16)}</div>`).join('')+'</div>';
+else if(/^p\d/.test(sp)){const p=objOf();h=hd(esc(p.name),'prov')+`<div class="card pad">`+FLD('name','text','Name|নাম')+FLD('type','sel','Type|ধরন',['openai','anthropic'],'openai = OpenRouter and most custom APIs|openai = OpenRouter ও বেশিরভাগ কাস্টম API')+FLD('base','text','Base URL')+FLD('key','pw','API key|এপিআই কী')+FLD('model','text','Model|মডেল')+`</div><div class="row"><button data-b="fetch">${t('Fetch models|মডেল আনুন')}</button><button data-b="test">${t('Test connection|পরীক্ষা')}</button><button data-b="use">${t('Use this|ব্যবহার করুন')}</button></div>${p.err?`<p class="er">${esc(p.err)}</p>`:''}`+((p.models||[]).length?'<div class="card">'+p.models.slice(0,300).map(m=>`<div class="rw" data-m="${esc(m)}"><span>${esc(m)}</span>${bd(m,p)}</div>`).join('')+'</div>':'')+`<button data-b="del" style="margin-top:14px">${t('Delete provider|মুছুন')}</button>`}
+else{const s=SEC.find(x=>x[0]==sp);h=hd(t(s[2]),'')+`<div class="ph"><span class="ti big" style="background:${s[3]}">${ic(s[1],22)}</span><div><b>${t(s[2])}</b><small>${t(s[4])}</small></div></div><div class="card pad">`+s[5].map(f=>FLD(...f)).join('')+'</div>'}
 $('#setb').innerHTML=h}
+async function testP(p){toast(t('Testing…|পরীক্ষা চলছে…'));try{const x=await llm(p,[{role:'user',content:'Reply with: OK'}],'Reply briefly.',{stream:false,mt:30});p.ok=true;p.err='';toast('OK: '+x.slice(0,40))}catch(e){p.ok=false;p.err=e.message;toast(String(e.message).slice(0,140))}save();drawSet()}
 $('#setb').addEventListener('input',e=>{const k=e.target.dataset.k;if(!k)return;sv(objOf(),k,e.target.type=='checkbox'?e.target.checked:e.target.type=='number'?+e.target.value:e.target.value);save();if(k=='theme'||k=='font')look();if(k=='lang'){drawSet();rend();lbl()}});
 $('#setb').addEventListener('change',async e=>{if(e.target.dataset.w&&e.target.files[0]){cfg.wall=await shrink(e.target.files[0],1080,.7);wall()}});
 $('#setb').onclick=async e=>{const g=s=>e.target.closest(s);let x;
@@ -71,9 +93,10 @@ if(x=g('[data-add]')){const r=PRE[+x.dataset.add];cfg.provs.push({name:r[0],type
 if(x=g('[data-m]')){objOf().model=x.dataset.m;save();drawSet();rend();return}
 if(x=g('[data-b]')){const b=x.dataset.b;
 if(b=='fetch')await fetchM(objOf());
+if(b=='test')await testP(objOf());
 if(b=='use'){cfg.active=+sp.slice(1);save();toast(t('Active|সক্রিয়'));rend()}
 if(b=='del'&&cfg.provs.length>1){cfg.provs.splice(+sp.slice(1),1);cfg.active=0;sp='prov';save();drawSet();rend()}
 if(b=='nowall'){cfg.wall='';wall()}
 if(b=='_clr'&&confirm('?')){chats=[];newChat();save();rend()}
 if(b=='_exp')dl('belal-box-chats.json',new Blob([JSON.stringify(chats)]));
-if(b=='_tts')speakT('আমি বেলাল বক্স, আপনার এআই সহকারী।')}};
+if(b=='_tts')speakT('আমি বেলাল বক্স, আপনার এআই সহকারী। আমি বাংলায় কথা বলতে পারি।')}};
