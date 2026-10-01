@@ -1,7 +1,7 @@
 /* sheets, artifact viewer, model picker, boot */
 const sh=(id,on)=>$('#'+id).classList[on?'add':'remove']('on');
 document.querySelectorAll('.ov').forEach(o=>o.addEventListener('click',e=>{if(e.target===o&&o.id!='pv')o.classList.remove('on')}));
-const IC={menu:'menu',ar_b:'file',nc2:'edit',gear:'gear',plus:'plus'};for(const k in IC)$('#'+k).innerHTML=ic(IC[k]);$('#pvx').innerHTML=ic('x');
+const IC={menu:'menu',ar_b:'file',nc2:'edit',gear:'gear',plus:'plus',mic:'mic'};for(const k in IC)$('#'+k).innerHTML=ic(IC[k]);$('#pvx').innerHTML=ic('x');
 function lbl(){$('#inp').placeholder=t('Message Belal Box…|Belal Box-কে লিখুন…');$('#adt').textContent=t('Add to chat|চ্যাটে যোগ করুন');$('#wtl').textContent=t('Web search|ওয়েব সার্চ');$('#alt').textContent=t('Artifacts|আর্টিফ্যাক্ট');$('#nc').textContent=t('New chat|নতুন চ্যাট');[['t1','cam','Camera|ক্যামেরা'],['t2','img','Photos|ছবি'],['t3','clip','Files|ফাইল']].forEach(([i,n,l])=>$('#'+i).innerHTML=ic(n,26)+'<br>'+t(l));if($('#setb')&&$('#set').classList.contains('on'))drawSet()}
 $('#plus').onclick=()=>{$('#wt').checked=cfg.search!='off';sh('ad',1)};$('#wt').onchange=e=>{cfg.search=e.target.checked?'auto':'off';save()};
 [1,2,3].forEach(n=>$('#t'+n).onclick=()=>{sh('ad',0);$('#f'+n).click()});
@@ -27,3 +27,18 @@ async function boot(){chats=(await kv.get('chats'))||J('bb_chats',[]);cfg={...DE
 if(!cfg.provs.length)cfg.provs=PRE.slice(0,4).map(r=>({name:r[0],type:r[1],base:r[2],key:'',model:'',models:[]}));
 if(!chats.length)newChat();look();wall();lbl();setSend(0);rend()}
 boot();
+
+/* summary sheet (Claude-style timeline) */
+function openSM(i){const m=cur().msgs[i],L=[];if(m.src&&m.src.length)L.push(t('Searched the web|ওয়েবে খুঁজেছি')+' · '+m.src.length);(m.t||'').replace(/\[\[status:([^\]]*)\]\]/g,(x,l)=>L.push(l.trim()));Object.keys(F).filter(k=>k.startsWith(i+':')&&!F[k].p).forEach(k=>L.push(t('Wrote|লিখেছি')+' '+F[k].n));
+const live=busy&&i==cur().msgs.length-1;$('#smb').innerHTML=`<div class="vh"><button class="ib" data-v="x">${ic('x')}</button><b>${t('Summary|সারাংশ')}</b><i style="width:40px"></i></div><div class="tl">${L.map((x,k)=>`<div class="${live&&k==L.length-1?'on':''}">${esc(x)}</div>`).join('')}${live?`<div class="on">${t('Thinking|চিন্তা করছি')}</div>`:''}</div>`;sh('sm',1)}
+$('#smb').onclick=e=>{if(e.target.closest('[data-v]'))sh('sm',0)};
+/* mic: speech to text with Gemini */
+let MR=null;const setMic=b=>$('#mic').classList.toggle('rec',!!b);
+async function micGo(){if(MR)return micStop();if(!cfg.tts.gemK){toast(t('Add your Gemini key in Settings > Voice|সেটিংস > ভয়েসে Gemini কী দিন'));return openSet('voice')}
+try{const st=await navigator.mediaDevices.getUserMedia({audio:true}),ac=new(window.AudioContext||window.webkitAudioContext)(),src=ac.createMediaStreamSource(st),pr=ac.createScriptProcessor(4096,1,1),bufs=[];pr.onaudioprocess=e=>bufs.push(new Float32Array(e.inputBuffer.getChannelData(0)));src.connect(pr);pr.connect(ac.destination);MR={st,ac,pr,bufs};setMic(1);hap()}catch(e){toast('Mic: '+e.message)}}
+async function micStop(){const{st,ac,pr,bufs}=MR;MR=null;setMic(0);pr.disconnect();st.getTracks().forEach(x=>x.stop());const sr=ac.sampleRate;ac.close();
+const n=bufs.reduce((a,b)=>a+b.length,0);if(n<sr/4)return;const f=new Float32Array(n);let o=0;bufs.forEach(b=>{f.set(b,o);o+=b.length});const r=sr/16000,m=Math.floor(n/r),pc=new Int16Array(m);for(let i=0;i<m;i++)pc[i]=Math.max(-1,Math.min(1,f[Math.floor(i*r)]))*32767;
+const h=new DataView(new ArrayBuffer(44)),w=(p,s)=>[...s].forEach((c,i)=>h.setUint8(p+i,c.charCodeAt(0)));w(0,'RIFF');h.setUint32(4,36+pc.length*2,true);w(8,'WAVEfmt ');h.setUint32(16,16,true);h.setUint16(20,1,true);h.setUint16(22,1,true);h.setUint32(24,16000,true);h.setUint32(28,32000,true);h.setUint16(32,2,true);h.setUint16(34,16,true);w(36,'data');h.setUint32(40,pc.length*2,true);
+toast(t('Listening…|শুনছি…'));try{const d=await b64(new Blob([h,pc],{type:'audio/wav'}));let tx='',err;for(const m2 of ['gemini-2.5-flash','gemini-flash-latest']){try{const j=await hx(`https://generativelanguage.googleapis.com/v1beta/models/${m2}:generateContent?key=${encodeURIComponent(cfg.tts.gemK)}`,{'content-type':'application/json'},{contents:[{parts:[{text:'Transcribe this audio exactly as spoken in its original language (Bengali in Bengali script). Output only the transcript.'},{inlineData:{mimeType:'audio/wav',data:d}}]}]});tx=((j.candidates||[])[0].content.parts||[]).map(p=>p.text||'').join('').trim();if(tx)break}catch(e){err=e}}
+if(!tx)throw err||new Error('No speech');const i=$('#inp');i.value+=(i.value?' ':'')+tx;i.dispatchEvent(new Event('input'));i.focus()}catch(e){toast(String(e.message).slice(0,160))}}
+$('#mic').onclick=micGo;
