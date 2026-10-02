@@ -2,9 +2,9 @@
 const sh=(id,on)=>$('#'+id).classList[on?'add':'remove']('on');
 document.querySelectorAll('.ov').forEach(o=>o.addEventListener('click',e=>{if(e.target===o&&o.id!='pv')o.classList.remove('on')}));
 const IC={menu:'menu',ar_b:'file',nc2:'edit',gear:'gear',plus:'plus',mic:'mic'};for(const k in IC)$('#'+k).innerHTML=ic(IC[k]);$('#pvx').innerHTML=ic('x');
-function lbl(){$('#inp').placeholder=t('Message Belal Box…|Belal Box-কে লিখুন…');$('#adt').textContent=t('Add to chat|চ্যাটে যোগ করুন');$('#wtl').textContent=t('Web search|ওয়েব সার্চ');$('#alt').textContent=t('Artifacts|আর্টিফ্যাক্ট');$('#nc').textContent=t('New chat|নতুন চ্যাট');[['t1','cam','Camera|ক্যামেরা'],['t2','img','Photos|ছবি'],['t3','clip','Files|ফাইল']].forEach(([i,n,l])=>$('#'+i).innerHTML=ic(n,26)+'<br>'+t(l));if($('#setb')&&$('#set').classList.contains('on'))drawSet()}
+function lbl(){$('#inp').placeholder=t('Message Belal Box…|Belal Box-কে লিখুন…');$('#adt').textContent=t('Add to chat|চ্যাটে যোগ করুন');$('#wtl').textContent=t('Web search|ওয়েব সার্চ');$('#alt').textContent=t('Artifacts|আর্টিফ্যাক্ট');$('#nc').textContent=t('New chat|নতুন চ্যাট');[['t1','cam','Camera|ক্যামেরা'],['t2','img','Photos|ছবি'],['t3','clip','Files|ফাইল'],['t4','wand','Create image|ছবি বানান']].forEach(([i,n,l])=>$('#'+i).innerHTML=ic(n,26)+'<br>'+t(l));if($('#setb')&&$('#set').classList.contains('on'))drawSet()}
 $('#plus').onclick=()=>{$('#wt').checked=cfg.search!='off';sh('ad',1)};$('#wt').onchange=e=>{cfg.search=e.target.checked?'auto':'off';save()};
-[1,2,3].forEach(n=>$('#t'+n).onclick=()=>{sh('ad',0);$('#f'+n).click()});
+[1,2,3].forEach(n=>$('#t'+n).onclick=()=>{sh('ad',0);$('#f'+n).click()});$('#t4').onclick=()=>{sh('ad',0);const i=$('#inp');i.value='/image '+i.value.replace(/^\/image\s*/,'');i.focus()};
 $('#nc2').onclick=()=>{newChat();save();rend()};
 const tile=n=>{const x=(n.split('.').pop()||'').toUpperCase(),d=/^(MD|TXT)$/.test(x);return`<div class="ft ${d?'bl':'or'}">${d?ic('file',26):'&lt;/&gt;'}</div><div><b>${esc(n)}</b><small>${d?'Document':'Code'} · ${esc(x)}</small></div>`};
 function openAL(){const en=Object.entries(F).filter(([k,f])=>!f.p);$('#alb').innerHTML=en.length?en.map(([k,f])=>`<div class="fc" data-a="ar" data-k="${k}">${tile(f.n)}<button class="ib" data-a="dl" data-k="${k}">${ic('dl')}</button></div>`).join('')+`<button class="pri" data-a="zp" data-i="*">${t('Download all|সব ডাউনলোড')}</button>`:`<p style="color:var(--mu);margin:14px 0">${t('No files yet|এখনো কোনো ফাইল নেই')}</p>`;sh('al',1)}
@@ -25,12 +25,13 @@ const L=q=>{const p=cfg.provs[cfg.active];$('#mpl').innerHTML=p.models&&p.models
 $('#mpb').onclick=e=>{const d=e.target.closest('[data-m]');if(d){cfg.provs[cfg.active].model=d.dataset.m;save();sh('mp',0);rend()}};
 async function boot(){chats=(await kv.get('chats'))||J('bb_chats',[]);cfg={...DEFC,...cfg,tts:{...DEFC.tts,...cfg.tts}};const T=cfg.tts;if(!T.murfK&&T.key)T.murfK=T.key;if(/generate/.test(T.murfU||''))T.murfU=DEFC.tts.murfU;
 if(!cfg.provs.length)cfg.provs=PRE.slice(0,4).map(r=>({name:r[0],type:r[1],base:r[2],key:'',model:'',models:[]}));
+if(!cfg.v4){cfg.v4=1;cfg.read=false;cfg.wdim=90;cfg.noemo=true}
 if(!chats.length)newChat();look();wall();lbl();setSend(0);rend()}
 boot();
 
 /* summary sheet (Claude-style timeline) */
-function openSM(i){const m=cur().msgs[i],L=[];if(m.src&&m.src.length)L.push(t('Searched the web|ওয়েবে খুঁজেছি')+' · '+m.src.length);(m.t||'').replace(/\[\[status:([^\]]*)\]\]/g,(x,l)=>L.push(l.trim()));Object.keys(F).filter(k=>k.startsWith(i+':')&&!F[k].p).forEach(k=>L.push(t('Wrote|লিখেছি')+' '+F[k].n));
-const live=busy&&i==cur().msgs.length-1;$('#smb').innerHTML=`<div class="vh"><button class="ib" data-v="x">${ic('x')}</button><b>${t('Summary|সারাংশ')}</b><i style="width:40px"></i></div><div class="tl">${L.map((x,k)=>`<div class="${live&&k==L.length-1?'on':''}">${esc(x)}</div>`).join('')}${live?`<div class="on">${t('Thinking|চিন্তা করছি')}</div>`:''}</div>`;sh('sm',1)}
+function openSM(i){const m=cur().msgs[i],L=[];if(m.src&&m.src.length)L.push('Searched the web'+' · '+m.src.length);(m.t||'').replace(/\[\[status:([^\]]*)\]\]/g,(x,l)=>L.push(l.trim()));Object.keys(F).filter(k=>k.startsWith(i+':')&&!F[k].p).forEach(k=>L.push('Wrote'+' '+F[k].n));
+const live=busy&&i==cur().msgs.length-1;$('#smb').innerHTML=`<div class="vh"><button class="ib" data-v="x">${ic('x')}</button><b>${t('Summary|সারাংশ')}</b><i style="width:40px"></i></div><div class="tl">${L.map((x,k)=>`<div class="${live&&k==L.length-1?'on':''}" style="--c:${kind(x)[0]}">${esc(x)}</div>`).join('')}${live?`<div class="on">${'Thinking'}</div>`:''}</div>`;sh('sm',1)}
 $('#smb').onclick=e=>{if(e.target.closest('[data-v]'))sh('sm',0)};
 /* mic: speech to text with Gemini */
 let MR=null;const setMic=b=>$('#mic').classList.toggle('rec',!!b);
